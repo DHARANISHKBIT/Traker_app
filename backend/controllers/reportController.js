@@ -1,5 +1,5 @@
 const Transaction = require("../modules/tranctionModule");
-// const PDFDocument = require("pdfkit");
+const PDFDocument = require("pdfkit");
 
 // Get monthly report data
 const getMonthlyReport = async (req, res) => {
@@ -108,10 +108,10 @@ const exportPDF = async (req, res) => {
     });
 
     // Create PDF document
-    // const doc = new PDFDocument({
-    //   margin: 50,
-    //   size: "A4",
-    // });
+    const doc = new PDFDocument({
+      margin: 50,
+      size: "A4",
+    });
 
     // Set response headers
     res.setHeader("Content-Type", "application/pdf");
@@ -268,12 +268,69 @@ const exportPDF = async (req, res) => {
 // Export Excel report (placeholder - would need xlsx package)
 const exportExcel = async (req, res) => {
   try {
-    // For now, return a message that Excel export is not yet implemented
-    // You can implement this using the 'xlsx' package if needed
-    res.status(501).json({
-      success: false,
-      message: "Excel export is not yet implemented",
-    });
+    const userId = req.user?._id;
+    const { month, year } = req.query;
+
+    if (!month || !year) {
+      return res.status(400).json({
+        success: false,
+        message: "Month and year are required",
+      });
+    }
+
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
+
+    const transactions = await Transaction.find({
+      userId,
+      date: {
+        $gte: startDate,
+        $lte: endDate,
+      },
+    }).sort({ date: -1 });
+
+    // Build CSV content that Excel can open
+    const header = [
+      "Date",
+      "Type",
+      "Category",
+      "Description",
+      "Amount",
+    ];
+
+    const rows = transactions.map((t) => [
+      new Date(t.date).toISOString(),
+      t.type,
+      t.category || "",
+      (t.description || "").replace(/"/g, '""'),
+      t.amount.toFixed(2),
+    ]);
+
+    const csvLines = [
+      header.join(","),
+      ...rows.map((row) =>
+        row
+          .map((cell) => {
+            // Quote cells that contain commas or quotes
+            const needsQuotes = /[",\n]/.test(cell);
+            return needsQuotes ? `"${cell}"` : cell;
+          })
+          .join(",")
+      ),
+    ];
+
+    const csvContent = csvLines.join("\r\n");
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=expense-report-${year}-${String(month).padStart(
+        2,
+        "0"
+      )}.csv`
+    );
+
+    return res.status(200).send(csvContent);
   } catch (error) {
     console.error("Export Excel error:", error.message);
     res.status(500).json({

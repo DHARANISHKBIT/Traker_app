@@ -3,32 +3,40 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("Server configuration error: JWT_SECRET is not set");
+  }
+  return jwt.sign({ userId }, secret, { expiresIn: '7d' });
 };
 
 const registerUser = async (name, email, password) => {
-  // Input validation
-  if (!name || !email || !password) {
+  // Input validation (ensure strings, trim whitespace)
+  const trimmedName = typeof name === 'string' ? name.trim() : '';
+  const trimmedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  const pass = typeof password === 'string' ? password : '';
+
+  if (!trimmedName || !trimmedEmail || !pass) {
     throw new Error("All fields are required");
   }
 
-  if (password.length < 6) {
+  if (pass.length < 6) {
     throw new Error("Password must be at least 6 characters long");
   }
 
   // Email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
+  if (!emailRegex.test(trimmedEmail)) {
     throw new Error("Please enter a valid email address");
   }
 
-  const existingUser = await User.findOne({ email });
+  const existingUser = await User.findOne({ email: trimmedEmail });
   if (existingUser) {
     throw new Error("User already exists with this email");
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const user = new User({ name, email, password: hashedPassword });
+  const hashedPassword = await bcrypt.hash(pass, 10);
+  const user = new User({ name: trimmedName, email: trimmedEmail, password: hashedPassword });
   await user.save();
 
   // Generate token for the new user

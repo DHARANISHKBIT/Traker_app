@@ -2,13 +2,16 @@ const { registerUser, loginUser } = require("../services/userServices");
 
 const register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const body = req.body || {};
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    const email = typeof body.email === 'string' ? body.email.trim() : '';
+    const password = typeof body.password === 'string' ? body.password : '';
     
     // Basic validation
     if (!name || !email || !password) {
       return res.status(400).json({ 
         success: false, 
-        message: "All fields are required",
+        message: "All fields are required (name, email, password)",
         error: "MISSING_FIELDS"
       });
     }
@@ -29,7 +32,8 @@ const register = async (req, res) => {
     });
   } catch (error) {
     console.error("Registration error:", error.message);
-    res.status(400).json({ 
+    const statusCode = error.message?.includes("Server configuration") ? 500 : 400;
+    res.status(statusCode).json({ 
       success: false, 
       message: error.message,
       error: "REGISTRATION_FAILED"
