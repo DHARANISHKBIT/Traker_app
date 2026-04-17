@@ -43,7 +43,10 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const body = req.body || {};
+    const email =
+      typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const password = typeof body.password === "string" ? body.password.trim() : "";
     
     // Basic validation
     if (!email || !password) {

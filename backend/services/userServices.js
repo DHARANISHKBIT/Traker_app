@@ -55,16 +55,19 @@ const registerUser = async (name, email, password) => {
 
 const loginUser = async (email, password) => {
   // Input validation
-  if (!email || !password) {
+  const trimmedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  const pass = typeof password === 'string' ? password : '';
+
+  if (!trimmedEmail || !pass) {
     throw new Error("Email and password are required");
   }
 
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email: trimmedEmail });
   if (!user) {
     throw new Error("Invalid email or password");
   }
 
-  const isMatch = await bcrypt.compare(password, user.password);
+  const isMatch = await bcrypt.compare(pass, user.password);
   if (!isMatch) {
     throw new Error("Invalid email or password");
   }
